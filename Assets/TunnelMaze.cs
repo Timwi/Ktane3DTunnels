@@ -5,37 +5,53 @@ using System.Linq;
 using UnityEngine;
 using KmHelper;
 using Rnd = UnityEngine.Random;
+using Assets;
 
 public class TunnelMaze : MonoBehaviour
 {
     public KMBombInfo Bomb;
-    public KMSelectable Module;
-    public KMSelectable[] Buttons;
+    public KMBombModule Module;
+    public KMSelectable ButtonUp;
+    public KMSelectable ButtonDown;
+    public KMSelectable ButtonLeft;
+    public KMSelectable ButtonRight;
     public GameObject Display;
-    public GameObject Symbol;
+    public TextMesh Symbol;
+
+    private static readonly string _symbols = "ghidefabcpqrmnojklyz.vwxstu";
 
     private int _moduleId;
     private static int _moduleIdCounter = 1;
     private int _location;
-    private Facing _facing;
-    private Bank _bank;
-    private enum Facing { North, East, South, West, Top, Bottom };
-    private enum Bank { _0, _90, _180, _270 };
-    private enum Direction { Forward, Backward, Left, Right, Up, Down };
-    private Dictionary<Direction, bool> _tunnels;
+    private Direction _direction;
+    private HashSet<int> _showSymbol = new HashSet<int>();
+    private List<int> _toVisit;
+    private int _numShowSymbol = 4;
+    private int _numToVisit = 3;
+
     void Start()
     {
         _moduleId = _moduleIdCounter++;
 
-        for (int i = 0; i < Buttons.Length; i++)
-        {
-            var j = i;
-            Buttons[i].OnInteract += delegate () { PressButton(j); return false; };
-        }
+        ButtonUp.OnInteract += delegate () { PressButton(dir => dir.TurnUpDown(up: true)); return false; };
+        ButtonDown.OnInteract += delegate () { PressButton(dir => dir.TurnUpDown(up: false)); return false; };
+        ButtonLeft.OnInteract += delegate () { PressButton(dir => dir.TurnLeftRight(right: false)); return false; };
+        ButtonRight.OnInteract += delegate () { PressButton(dir => dir.TurnLeftRight(right: true)); return false; };
 
-        _location = 0;
-        _facing = Facing.East;
-        _bank = Bank._0;
+        _location = Rnd.Range(0, 27);
+
+        var directions = Enum.GetValues(typeof(Direction));
+        _direction = (Direction)directions.GetValue(Rnd.Range(0, directions.Length));
+
+        while (_showSymbol.Count < _numShowSymbol)
+            _showSymbol.Add(Rnd.Range(0, 27));
+
+        // Initialize with shown symbols so we can exclude them later
+        var toVisit = new HashSet<int>(_showSymbol);
+
+        while (toVisit.Count < (_numShowSymbol + _numToVisit))
+            toVisit.Add(Rnd.Range(0, 27));
+        _toVisit = toVisit.Except(_showSymbol).ToList();
 
         UpdateDisplay();
         StartCoroutine(RotateSymbol());
@@ -44,70 +60,38 @@ public class TunnelMaze : MonoBehaviour
 
     private void UpdateDisplay()
     {
-        // Determine where the tunnels are for facing north, no bank
-        var x = _location % 3;
-        var y = Math.Floor(_location % 9 / 3f);
-        var z = Math.Floor(_location / 9f);
-        _tunnels = new Dictionary<Direction, bool> {
-            { Direction.Forward, z < 2 },
-            { Direction.Backward, z > 0 },
-            { Direction.Left, x > 0 },
-            { Direction.Right, x < 2 },
-            { Direction.Up, y < 2 },
-            { Direction.Down, y > 0 }
-        };
-
-        // Consider facing
-        if (_facing != Facing.North)
-        {
-            Dictionary<Direction, bool> orig = new Dictionary<Direction, bool>(_tunnels);
-            if (_facing == Facing.East)
-            {
-                _tunnels[Direction.Forward] = orig[Direction.Right];
-                _tunnels[Direction.Right] = orig[Direction.Backward];
-                _tunnels[Direction.Backward] = orig[Direction.Left];
-                _tunnels[Direction.Left] = orig[Direction.Forward];
-            }
-            else if (_facing == Facing.South)
-            {
-                _tunnels[Direction.Forward] = orig[Direction.Backward];
-                _tunnels[Direction.Right] = orig[Direction.Left];
-                _tunnels[Direction.Backward] = orig[Direction.Forward];
-                _tunnels[Direction.Left] = orig[Direction.Right];
-            }
-            else if (_facing == Facing.West)
-            {
-                _tunnels[Direction.Forward] = orig[Direction.Left];
-                _tunnels[Direction.Right] = orig[Direction.Forward];
-                _tunnels[Direction.Backward] = orig[Direction.Right];
-                _tunnels[Direction.Left] = orig[Direction.Backward];
-            }
-            else if (_facing == Facing.Top)
-            {
-                _tunnels[Direction.Forward] = orig[Direction.Left];
-                _tunnels[Direction.Right] = orig[Direction.Forward];
-                _tunnels[Direction.Backward] = orig[Direction.Right];
-                _tunnels[Direction.Left] = orig[Direction.Backward];
-            }
-        }
-
-
-
-        Display.transform.Find("forward-tunnel").gameObject.SetActive(_tunnels[Direction.Forward]);
-        Display.transform.Find("forward-wall").gameObject.SetActive(!_tunnels[Direction.Forward]);
-        Display.transform.Find("left-tunnel").gameObject.SetActive(_tunnels[Direction.Left]);
-        Display.transform.Find("left-wall").gameObject.SetActive(!_tunnels[Direction.Left]);
-        Display.transform.Find("right-tunnel").gameObject.SetActive(_tunnels[Direction.Right]);
-        Display.transform.Find("right-wall").gameObject.SetActive(!_tunnels[Direction.Right]);
-        Display.transform.Find("up-tunnel").gameObject.SetActive(_tunnels[Direction.Up]);
-        Display.transform.Find("up-wall").gameObject.SetActive(!_tunnels[Direction.Up]);
-        Display.transform.Find("down-tunnel").gameObject.SetActive(_tunnels[Direction.Down]);
-        Display.transform.Find("down-wall").gameObject.SetActive(!_tunnels[Direction.Down]);
+        Display.transform.Find("forward-tunnel").gameObject.SetActive(!_direction.IsWallForward(_location));
+        Display.transform.Find("forward-wall").gameObject.SetActive(_direction.IsWallForward(_location));
+        Display.transform.Find("left-tunnel").gameObject.SetActive(!_direction.TurnLeftRight(right: false).IsWallForward(_location));
+        Display.transform.Find("left-wall").gameObject.SetActive(_direction.TurnLeftRight(right: false).IsWallForward(_location));
+        Display.transform.Find("right-tunnel").gameObject.SetActive(!_direction.TurnLeftRight(right: true).IsWallForward(_location));
+        Display.transform.Find("right-wall").gameObject.SetActive(_direction.TurnLeftRight(right: true).IsWallForward(_location));
+        Display.transform.Find("up-tunnel").gameObject.SetActive(!_direction.TurnUpDown(up: true).IsWallForward(_location));
+        Display.transform.Find("up-wall").gameObject.SetActive(_direction.TurnUpDown(up: true).IsWallForward(_location));
+        Display.transform.Find("down-tunnel").gameObject.SetActive(!_direction.TurnUpDown(up: false).IsWallForward(_location));
+        Display.transform.Find("down-wall").gameObject.SetActive(_direction.TurnUpDown(up: false).IsWallForward(_location));
+        Symbol.gameObject.SetActive(_showSymbol.Contains(_location));
+        Symbol.text = _symbols[_location].ToString();
     }
 
-    private void PressButton(int i)
+    private void PressButton(Func<Direction, Direction> turn)
     {
-        throw new NotImplementedException();
+        // Turn
+        _direction = turn(_direction);
+
+        // If you can move forward
+        if (!_direction.IsWallForward(_location))
+        {
+            // Do so
+            _location = _direction.MoveForward(_location);
+        }
+        else
+        {
+            // Else, give strike
+            Module.HandleStrike();
+        }
+
+        UpdateDisplay();
     }
 
     void Update()
