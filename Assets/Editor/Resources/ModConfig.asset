@@ -11,10 +11,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 615501dbe4f3fe94fbf4b564abb10237, type: 3}
   m_Name: ModConfig
   m_EditorClassIdentifier: 
-  id: tunnelMaze
-  title: Tunnel Maze
-  description: "Manual: https://ktane.timwi.de/HTML/Tunnel%20Maze.html\r\n\r\nModule
-    ID: tunnenMaze\n\r\nCreated by Groover\n(Groover#1027\r on Discord)"
+  id: 3dTunnels
+  title: 3D Tunnels
+  description: "Manual: https://ktane.timwi.de/HTML/3D%20Tunnels.html\r\n\r\nModule
+    ID: 3dTunnels\n\r\nCreated by Groover and Timwi"
   version: 1.0
   outputFolder: build
-  previewImage: {fileID: 0}
+  previewImage: {fileID: 2800000, guid: c3a953f7e206ae041ac23b394e34332c, type: 3}
