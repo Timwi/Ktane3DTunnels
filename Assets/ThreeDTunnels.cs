@@ -31,7 +31,7 @@ public class ThreeDTunnels : MonoBehaviour
     private static int _moduleIdCounter = 1;
     private int _location;
     private Direction _direction;
-    private HashSet<int> _identifiedNodes = new HashSet<int>();
+    private HashSet<int> _identifiedNodes;
     private List<int> _targetNodes;
     private int _numIdentifiedNotes = 6;
     private int _numTargetNodes = 3;
@@ -48,16 +48,45 @@ public class ThreeDTunnels : MonoBehaviour
         ButtonRight.OnInteract += delegate () { PressButton(dir => dir.TurnLeftRight(right: true)); return false; };
         ButtonTarget.OnInteract += delegate () { PressTargetButton(); return false; };
 
-        // Random identified nodes
-        while (_identifiedNodes.Count < _numIdentifiedNotes)
-            _identifiedNodes.Add(Rnd.Range(0, 27));
+        var found = false;
+        while (!found)
+        {
+            // Random identified nodes (because it's a HashSet, it will only add unique values)
+            _identifiedNodes = new HashSet<int>();
+            while (_identifiedNodes.Count < _numIdentifiedNotes)
+                _identifiedNodes.Add(Rnd.Range(0, 27));
+
+            // Check if there is at least a pair that's in the same square,
+            // middle node (13) doesn't give enough information.
+            foreach (var node1 in _identifiedNodes)
+            {
+                foreach (var node2 in _identifiedNodes)
+                {
+                    if (node1 == node2) continue;
+                    if (node1 == 13 || node2 == 13) continue;
+                    int x1, y1, z1, x2, y2, z2;
+                    DirectionUtils.GetXYZ(node1, out x1, out y1, out z1);
+                    DirectionUtils.GetXYZ(node2, out x2, out y2, out z2);
+                    var distances = new List<int>() { Math.Abs(x1 - x2), Math.Abs(y1 - y2), Math.Abs(z1 - z2) };
+                    if (distances.Count(d => d == 0) == 2 && distances.Count(d => d == 1) == 1)
+                        found = true;
+                    if (distances.Count(d => d == 0) == 1 && distances.Count(d => d == 1) == 2)
+                        found = true;
+                    if (found) break;
+                }
+                if (found) break;
+            }
+        }
         Debug.LogFormat("[3D Tunnels #{0}] Identified nodes: {1}", _moduleId, String.Join(", ", _identifiedNodes.Select(x => _symbolNames[x]).ToArray()));
 
-        // Random target nodes
+        // Random target nodes, except for center node
         // Initialize with identified nodes so we can exclude them later
         var targetNodes = new HashSet<int>(_identifiedNodes);
         while (targetNodes.Count < (_numIdentifiedNotes + _numTargetNodes))
-            targetNodes.Add(Rnd.Range(0, 27));
+        {
+            var rnd = Rnd.Range(0, 27);
+            if (rnd != 13) targetNodes.Add(rnd);
+        }
         _targetNodes = targetNodes.Except(_identifiedNodes).ToList();
         Debug.LogFormat("[3D Tunnels #{0}] Target nodes: {1}", _moduleId, String.Join(", ", _targetNodes.Select(x => _symbolNames[x]).ToArray()));
 

@@ -95,7 +95,7 @@ namespace Assets
             return x + 3 * (y + 3 * z);
         }
 
-        private static void GetXYZ(int position, out int x, out int y, out int z)
+        public static void GetXYZ(int position, out int x, out int y, out int z)
         {
             x = position % 3;
             y = (position / 3) % 3;
