@@ -98,7 +98,17 @@ public class ThreeDTunnels : MonoBehaviour
         // Random starting direction
         var directions = Enum.GetValues(typeof(Direction));
         _direction = (Direction)directions.GetValue(Rnd.Range(0, directions.Length));
-        Debug.LogFormat("[3D Tunnels #{0}] Starting orientation: {1} (N=negative, X=right, Y=up, Z=away)", _moduleId, _direction);
+        var msg = "";
+        if (_direction.IsWallForward(_location))
+            msg += "Behind you is " + _symbolNames[_direction.TurnLeftRight(true).TurnLeftRight(true).MoveForward(_location)];
+        else
+            msg += "In front of you is " + _symbolNames[_direction.MoveForward(_location)];
+        if (_direction.TurnUpDown(up: true).IsWallForward(_location))
+            msg += ", below you is " + _symbolNames[_direction.TurnUpDown(up: false).MoveForward(_location)] + ".";
+        else
+            msg += ", above you is " + _symbolNames[_direction.TurnUpDown(up: true).MoveForward(_location)] + ".";
+        Debug.LogFormat("[3D Tunnels #{0}] Starting orientation: {1}", _moduleId, _direction);
+        Debug.LogFormat("[3D Tunnels #{0}] Starting orientation: {1}", _moduleId, msg);
 
         UpdateDisplay();
         StartCoroutine(RotateSymbol());
