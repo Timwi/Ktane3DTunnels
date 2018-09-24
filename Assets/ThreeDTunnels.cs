@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -227,6 +227,43 @@ public class ThreeDTunnels : MonoBehaviour
             }
 
             scaleDirection *= -1f;
+        }
+    }
+
+    private string TwitchHelpMessage = @"Use '!{0} move u d l r' to move around maze. Use '!{0} submit' to submit a symbol.";
+
+    IEnumerator ProcessTwitchCommand(string command)
+    {
+        var parts = command.ToLowerInvariant().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length > 1 && parts[0] == "move" && parts.Skip(1).All(part => part.Length == 1 && "udlr".Contains(part)))
+        {
+            yield return null;
+
+            for (int i = 1; i < parts.Length; i++)
+            {
+                if (parts[i] == "u")
+                {
+                    PressButton(dir => dir.TurnUpDown(up: true));
+                }
+                else if (parts[i] == "d")
+                {
+                    PressButton(dir => dir.TurnUpDown(up: false));
+                }
+                else if (parts[i] == "l")
+                {
+                    PressButton(dir => dir.TurnLeftRight(right: false));
+                }
+                else if (parts[i] == "r")
+                {
+                    PressButton(dir => dir.TurnLeftRight(right: true));
+                }
+            }
+        }
+        else if (parts.Length == 1 && parts[0] == "submit")
+        {
+            yield return null;
+            PressTargetButton();
         }
     }
 }
