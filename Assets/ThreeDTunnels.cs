@@ -37,15 +37,18 @@ public class ThreeDTunnels : MonoBehaviour
     private int _numTargetNodes = 3;
     private int _currentTarget = 0;
     private bool _solved = false;
+    private List<Action> _actionLog = new List<Action>();
+    private enum Button { Up, Right, Down, Left, Target };
+    private enum StrikeReason { None, FlyIntoWall, NotOnTarget };
 
     void Start()
     {
         _moduleId = _moduleIdCounter++;
 
-        ButtonUp.OnInteract += delegate () { PressButton(dir => dir.TurnUpDown(up: true)); return false; };
-        ButtonDown.OnInteract += delegate () { PressButton(dir => dir.TurnUpDown(up: false)); return false; };
-        ButtonLeft.OnInteract += delegate () { PressButton(dir => dir.TurnLeftRight(right: false)); return false; };
-        ButtonRight.OnInteract += delegate () { PressButton(dir => dir.TurnLeftRight(right: true)); return false; };
+        ButtonUp.OnInteract += delegate () { PressButton(Button.Up, dir => dir.TurnUpDown(up: true)); return false; };
+        ButtonDown.OnInteract += delegate () { PressButton(Button.Down, dir => dir.TurnUpDown(up: false)); return false; };
+        ButtonLeft.OnInteract += delegate () { PressButton(Button.Left, dir => dir.TurnLeftRight(right: false)); return false; };
+        ButtonRight.OnInteract += delegate () { PressButton(Button.Right, dir => dir.TurnLeftRight(right: true)); return false; };
         ButtonTarget.OnInteract += delegate () { PressTargetButton(); return false; };
 
         var found = false;
@@ -77,7 +80,7 @@ public class ThreeDTunnels : MonoBehaviour
                 if (found) break;
             }
         }
-        Debug.LogFormat("[3D Tunnels #{0}] Identified nodes: {1}", _moduleId, String.Join(", ", _identifiedNodes.Select(x => _symbolNames[x]).ToArray()));
+        Debug.LogFormat("[3d Tunnels #{0}] Identified nodes: {1}", _moduleId, String.Join(", ", _identifiedNodes.Select(x => _symbolNames[x]).ToArray()));
 
         // Random target nodes, except for center node
         // Initialize with identified nodes so we can exclude them later
@@ -88,27 +91,17 @@ public class ThreeDTunnels : MonoBehaviour
             if (rnd != 13) targetNodes.Add(rnd);
         }
         _targetNodes = targetNodes.Except(_identifiedNodes).ToList();
-        Debug.LogFormat("[3D Tunnels #{0}] Target nodes: {1}", _moduleId, String.Join(", ", _targetNodes.Select(x => _symbolNames[x]).ToArray()));
+        Debug.LogFormat("[3d Tunnels #{0}] Target nodes: {1}", _moduleId, String.Join(", ", _targetNodes.Select(x => _symbolNames[x]).ToArray()));
 
         // Random starting location
         do _location = Rnd.Range(0, 27);
         while (_identifiedNodes.Contains(_location));
-        Debug.LogFormat("[3D Tunnels #{0}] Starting location: {1}", _moduleId, _symbolNames[_location]);
 
         // Random starting direction
         var directions = Enum.GetValues(typeof(Direction));
         _direction = (Direction)directions.GetValue(Rnd.Range(0, directions.Length));
-        var msg = "";
-        if (_direction.IsWallForward(_location))
-            msg += "Behind you is " + _symbolNames[_direction.TurnLeftRight(true).TurnLeftRight(true).MoveForward(_location)];
-        else
-            msg += "In front of you is " + _symbolNames[_direction.MoveForward(_location)];
-        if (_direction.TurnUpDown(up: true).IsWallForward(_location))
-            msg += ", below you is " + _symbolNames[_direction.TurnUpDown(up: false).MoveForward(_location)] + ".";
-        else
-            msg += ", above you is " + _symbolNames[_direction.TurnUpDown(up: true).MoveForward(_location)] + ".";
-        Debug.LogFormat("[3D Tunnels #{0}] Starting orientation: {1}", _moduleId, _direction);
-        Debug.LogFormat("[3D Tunnels #{0}] Starting orientation: {1}", _moduleId, msg);
+
+        Debug.LogFormat("[3d Tunnels #{0}] Starting at {1}. {2}", _moduleId, _symbolNames[_location], GetOrientationDescription(_location, _direction));
 
         UpdateDisplay();
         StartCoroutine(RotateSymbol());
@@ -132,29 +125,42 @@ public class ThreeDTunnels : MonoBehaviour
         TargetSymbol.text = _symbols[_targetNodes[_currentTarget]].ToString();
     }
 
-    private void PressButton(Func<Direction, Direction> turn)
+    private void PressButton(Button button, Func<Direction, Direction> turn)
     {
         if (_solved) return;
 
         GetComponent<KMAudio>().PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, transform);
         GetComponent<KMSelectable>().AddInteractionPunch();
 
+        Action action = new Action() { StartLocation = _location, StartOrientation = _direction, Button = button };
+
+        // Log move
+        if (_identifiedNodes.Contains(_location))
+        {
+            _actionLog.Clear();
+            action.LocationIsIdentified = true;
+        }
+
         // Turn
         _direction = turn(_direction);
+        action.EndOrientation = _direction;
 
         // Check if you can move forward
         if (!_direction.IsWallForward(_location))
         {
             // If so, move forward
             _location = _direction.MoveForward(_location);
+            action.EndLocation = _location;
         }
         else
         {
             // Else, give a strike
-            Debug.LogFormat("[3D Tunnels #{0}] There’s a wall in front of you at location {1}, orientation {2}. Strike!", _moduleId, _symbolNames[_location], _direction);
             Module.HandleStrike();
+            action.StrikeReason = StrikeReason.FlyIntoWall;
         }
 
+        _actionLog.Add(action);
+        if (action.StrikeReason != StrikeReason.None) LogActions();
         UpdateDisplay();
     }
 
@@ -165,14 +171,16 @@ public class ThreeDTunnels : MonoBehaviour
         GetComponent<KMAudio>().PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, transform);
         GetComponent<KMSelectable>().AddInteractionPunch();
 
+        Action action = new Action() { StartLocation = _location, StartOrientation = _direction, Button = Button.Target };
+
         // Check if current location matches current target
         if (_location == _targetNodes[_currentTarget])
         {
             // If so, go to next stage, or module solved if this was the last stage
-            Debug.LogFormat("[3D Tunnels #{0}] {1} identified correctly.", _moduleId, _symbolNames[_location]);
+            Debug.LogFormat("[3d Tunnels #{0}] {1} identified correctly.", _moduleId, _symbolNames[_location]);
             if (_currentTarget == _numTargetNodes - 1)
             {
-                Debug.LogFormat("[3D Tunnels #{0}] Module solved.", _moduleId);
+                Debug.LogFormat("[3d Tunnels #{0}] Module solved!", _moduleId);
                 _solved = true;
                 TargetSymbol.gameObject.SetActive(false);
                 Module.HandlePass();
@@ -188,8 +196,58 @@ public class ThreeDTunnels : MonoBehaviour
         {
             // If not, give strike
             Module.HandleStrike();
-            Debug.LogFormat("[3D Tunnels #{0}] You are not at {1}, you are at {2}. Strike!", _moduleId, _symbolNames[_targetNodes[_currentTarget]], _symbolNames[_location]);
+            action.StrikeReason = StrikeReason.NotOnTarget;
         }
+
+        _actionLog.Add(action);
+        if (action.StrikeReason != StrikeReason.None) LogActions();
+    }
+
+    private void LogActions()
+    {
+        Debug.LogFormat("[3d Tunnels #{0}] You got a strike. Action log:", _moduleId);
+
+        for (var i = 0; i < _actionLog.Count; i++)
+        {
+            var action = _actionLog[i];
+            var msg = "";
+
+            if (i == 0) {
+                msg += "Starting at " + _symbolNames[action.StartLocation] + ". ";
+                msg += GetOrientationDescription(action.StartLocation, action.StartOrientation);
+                if (action.LocationIsIdentified)
+                    msg += " This is the most recent location where the symbol is shown on the module. ";
+            }
+
+            msg += "Pressing " + action.Button.ToString() + ". ";
+            if (action.StrikeReason == StrikeReason.NotOnTarget)
+                msg += "You are not at " + _symbolNames[_targetNodes[_currentTarget]] + ", you are at " + _symbolNames[_location] + "!";
+            else if (action.Button != Button.Target)
+            {
+                msg += "New orientation: " + GetOrientationDescription(action.StartLocation, action.EndOrientation);
+                if (action.StrikeReason == StrikeReason.FlyIntoWall)
+                    msg += "Moving forward. You fly into a wall! ";
+                else
+                    msg += "Moving forward to " + _symbolNames[action.EndLocation] + ". ";
+            }
+            Debug.LogFormat("[3d Tunnels #{0}] {1}", _moduleId, msg);
+        }
+        _actionLog.Clear();
+    }
+
+    private string GetOrientationDescription(int location, Direction direction)
+    {
+        var msg = "";
+        if (direction.IsWallForward(location))
+            msg += "Behind you is " + _symbolNames[direction.TurnLeftRight(true).TurnLeftRight(true).MoveForward(location)];
+        else
+            msg += "In front of you is " + _symbolNames[direction.MoveForward(location)];
+        if (direction.TurnUpDown(up: true).IsWallForward(location))
+            msg += ", below you is " + _symbolNames[direction.TurnUpDown(up: false).MoveForward(location)] + ". ";
+        else
+            msg += ", above you is " + _symbolNames[direction.TurnUpDown(up: true).MoveForward(location)] + ". ";
+
+        return msg;
     }
 
     private IEnumerator RotateSymbol()
@@ -230,7 +288,7 @@ public class ThreeDTunnels : MonoBehaviour
         }
     }
 
-    private string TwitchHelpMessage = @"Use '!{0} move u d l r' to move around maze. Use '!{0} submit' to submit a symbol.";
+    private string TwitchHelpMessage = @"Use '!{0} move u d l r' to move around the grid. Use '!{0} submit' to press the goal button.";
 
     IEnumerator ProcessTwitchCommand(string command)
     {
@@ -244,21 +302,21 @@ public class ThreeDTunnels : MonoBehaviour
             {
                 if (parts[i] == "u")
                 {
-                    PressButton(dir => dir.TurnUpDown(up: true));
+                    PressButton(Button.Up, dir => dir.TurnUpDown(up: true));
                 }
                 else if (parts[i] == "d")
                 {
-                    PressButton(dir => dir.TurnUpDown(up: false));
+                    PressButton(Button.Down, dir => dir.TurnUpDown(up: false));
                 }
                 else if (parts[i] == "l")
                 {
-                    PressButton(dir => dir.TurnLeftRight(right: false));
+                    PressButton(Button.Left, dir => dir.TurnLeftRight(right: false));
                 }
                 else if (parts[i] == "r")
                 {
-                    PressButton(dir => dir.TurnLeftRight(right: true));
+                    PressButton(Button.Right, dir => dir.TurnLeftRight(right: true));
                 }
-                
+
                 yield return new WaitForSeconds(.2f);
             }
         }
@@ -267,5 +325,16 @@ public class ThreeDTunnels : MonoBehaviour
             yield return null;
             PressTargetButton();
         }
+    }
+
+    class Action
+    {
+        public int StartLocation { get; set; }
+        public Direction StartOrientation { get; set; }
+        public bool LocationIsIdentified { get; set; }
+        public Button Button { get; set; }
+        public int EndLocation { get; set; }
+        public Direction EndOrientation { get; set; }
+        public StrikeReason StrikeReason { get; set; }
     }
 }
