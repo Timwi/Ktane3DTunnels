@@ -258,6 +258,8 @@ public class ThreeDTunnels : MonoBehaviour
                 {
                     PressButton(dir => dir.TurnLeftRight(right: true));
                 }
+                
+                yield return new WaitForSeconds(.2f);
             }
         }
         else if (parts.Length == 1 && parts[0] == "submit")
