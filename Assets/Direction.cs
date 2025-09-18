@@ -1,8 +1,6 @@
-﻿using System;
-
-namespace Assets
+﻿namespace Ktane3DTunnels
 {
-    enum Direction
+    enum Direction3D
     {
         ForwardXUpY = 0x211121,
         ForwardXUpNY = 0x211101,
@@ -34,7 +32,7 @@ namespace Assets
 
     static class DirectionUtils
     {
-        public static bool IsWallForward(this Direction dir, int position)
+        public static bool IsWallForward(this Direction3D dir, int position)
         {
             int x, y, z;
             GetXYZ(position, out x, out y, out z);
@@ -44,26 +42,26 @@ namespace Assets
             return (x < 0 || x > 2 || y < 0 || y > 2 || z < 0 || z > 2);
         }
 
-        private static int GetForwardX(this Direction dir) { return ((int)dir >> 20) - 1; }
-        private static int GetForwardY(this Direction dir) { return (((int)dir >> 16) & 0xf) - 1; }
-        private static int GetForwardZ(this Direction dir) { return (((int)dir >> 12) & 0xf) - 1; }
-        private static int GetUpX(this Direction dir) { return (((int)dir >> 8) & 0xf) - 1; }
-        private static int GetUpY(this Direction dir) { return (((int)dir >> 4) & 0xf) - 1; }
-        private static int GetUpZ(this Direction dir) { return ((int)dir & 0xf) - 1; }
-        private static int GetLeftX(this Direction dir) { return GetForwardY(dir) * GetUpZ(dir) - GetForwardZ(dir) * GetUpY(dir); }
-        private static int GetLeftY(this Direction dir) { return GetForwardZ(dir) * GetUpX(dir) - GetForwardX(dir) * GetUpZ(dir); }
-        private static int GetLeftZ(this Direction dir) { return GetForwardX(dir) * GetUpY(dir) - GetForwardY(dir) * GetUpX(dir); }
+        private static int GetForwardX(this Direction3D dir) { return ((int) dir >> 20) - 1; }
+        private static int GetForwardY(this Direction3D dir) { return (((int) dir >> 16) & 0xf) - 1; }
+        private static int GetForwardZ(this Direction3D dir) { return (((int) dir >> 12) & 0xf) - 1; }
+        private static int GetUpX(this Direction3D dir) { return (((int) dir >> 8) & 0xf) - 1; }
+        private static int GetUpY(this Direction3D dir) { return (((int) dir >> 4) & 0xf) - 1; }
+        private static int GetUpZ(this Direction3D dir) { return ((int) dir & 0xf) - 1; }
+        private static int GetLeftX(this Direction3D dir) { return GetForwardY(dir) * GetUpZ(dir) - GetForwardZ(dir) * GetUpY(dir); }
+        private static int GetLeftY(this Direction3D dir) { return GetForwardZ(dir) * GetUpX(dir) - GetForwardX(dir) * GetUpZ(dir); }
+        private static int GetLeftZ(this Direction3D dir) { return GetForwardX(dir) * GetUpY(dir) - GetForwardY(dir) * GetUpX(dir); }
 
-        public static Direction TurnLeftRight(this Direction dir, bool right)
+        public static Direction3D TurnLeftRight(this Direction3D dir, bool right)
         {
             var r = Rotate(GetUpX(dir), GetUpY(dir), GetUpZ(dir), GetForwardX(dir), GetForwardY(dir), GetForwardZ(dir), right ? 1 : -1);
-            return (Direction)(((int)dir & 0xfff) | ((r[0] + 1) << 20) | ((r[1] + 1) << 16) | ((r[2] + 1) << 12));
+            return (Direction3D) (((int) dir & 0xfff) | ((r[0] + 1) << 20) | ((r[1] + 1) << 16) | ((r[2] + 1) << 12));
         }
-        public static Direction TurnUpDown(this Direction dir, bool up)
+        public static Direction3D TurnUpDown(this Direction3D dir, bool up)
         {
             var r1 = Rotate(GetLeftX(dir), GetLeftY(dir), GetLeftZ(dir), GetForwardX(dir), GetForwardY(dir), GetForwardZ(dir), up ? 1 : -1);
             var r2 = Rotate(GetLeftX(dir), GetLeftY(dir), GetLeftZ(dir), GetUpX(dir), GetUpY(dir), GetUpZ(dir), up ? 1 : -1);
-            return (Direction)(((r1[0] + 1) << 20) | ((r1[1] + 1) << 16) | ((r1[2] + 1) << 12) | ((r2[0] + 1) << 8) | ((r2[1] + 1) << 4) | (r2[2] + 1));
+            return (Direction3D) (((r1[0] + 1) << 20) | ((r1[1] + 1) << 16) | ((r1[2] + 1) << 12) | ((r2[0] + 1) << 8) | ((r2[1] + 1) << 4) | (r2[2] + 1));
         }
 
         private static int[] Rotate(int axisX, int axisY, int axisZ, int x, int y, int z, int sin)
@@ -83,7 +81,7 @@ namespace Assets
             };
         }
 
-        public static int MoveForward(this Direction dir, int position)
+        public static int MoveForward(this Direction3D dir, int position)
         {
             int x, y, z;
             GetXYZ(position, out x, out y, out z);

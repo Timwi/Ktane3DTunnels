@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Ktane3DTunnels;
 using UnityEngine;
 using Rnd = UnityEngine.Random;
-using Assets;
 
 public class ThreeDTunnels : MonoBehaviour
 {
@@ -26,11 +26,10 @@ public class ThreeDTunnels : MonoBehaviour
         "Chart", "Umbrella", "Wind", "Shield", "Star", "Sun", "Quarter", "Radio", "Gear"
     };
 
-
     private int _moduleId;
     private static int _moduleIdCounter = 1;
     private int _location;
-    private Direction _direction;
+    private Direction3D _direction;
     private HashSet<int> _identifiedNodes;
     private List<int> _targetNodes;
     private const int _numIdentifiedNotes = 6;
@@ -98,8 +97,8 @@ public class ThreeDTunnels : MonoBehaviour
         while (_identifiedNodes.Contains(_location));
 
         // Random starting direction
-        var directions = Enum.GetValues(typeof(Direction));
-        _direction = (Direction) directions.GetValue(Rnd.Range(0, directions.Length));
+        var directions = Enum.GetValues(typeof(Direction3D));
+        _direction = (Direction3D) directions.GetValue(Rnd.Range(0, directions.Length));
 
         Debug.LogFormat("[3D Tunnels #{0}] Starting at {1}. {2}", _moduleId, _symbolNames[_location], GetOrientationDescription(_location, _direction));
 
@@ -125,7 +124,7 @@ public class ThreeDTunnels : MonoBehaviour
         TargetSymbol.text = _symbols[_targetNodes[_currentTarget]].ToString();
     }
 
-    private void PressButton(Button button, Func<Direction, Direction> turn)
+    private void PressButton(Button button, Func<Direction3D, Direction3D> turn)
     {
         if (_solved) return;
 
@@ -236,7 +235,7 @@ public class ThreeDTunnels : MonoBehaviour
         _actionLog.Clear();
     }
 
-    private string GetOrientationDescription(int location, Direction direction)
+    private string GetOrientationDescription(int location, Direction3D direction)
     {
         var msg = "";
         if (direction.IsWallForward(location))
@@ -289,7 +288,7 @@ public class ThreeDTunnels : MonoBehaviour
         }
     }
 
-    private string TwitchHelpMessage = @"Use '!{0} move u d l r' to move around the grid. Use '!{0} submit' to press the goal button.";
+    private readonly string TwitchHelpMessage = @"Use '!{0} move u d l r' to move around the grid. Use '!{0} submit' to press the goal button.";
 
     IEnumerator ProcessTwitchCommand(string command)
     {
@@ -341,7 +340,7 @@ public class ThreeDTunnels : MonoBehaviour
             while (queue.Count > 0)
             {
                 var data = queue.Dequeue();
-                if ((data & 0x1f) == _currentTarget)
+                if ((data & 0x1f) == _targetNodes[_currentTarget])
                 {
                     last = data;
                     goto found;
@@ -380,7 +379,7 @@ public class ThreeDTunnels : MonoBehaviour
     bool TryTpMove(int data, int btn, out int newData, out int newParent)
     {
         var pos = data & 0x1f;
-        var dir = (Direction) (data >> 5);
+        var dir = (Direction3D) (data >> 5);
         var newDir =
             btn == 0 ? dir.TurnUpDown(up: true) :
             btn == 1 ? dir.TurnLeftRight(right: true) :
@@ -396,11 +395,11 @@ public class ThreeDTunnels : MonoBehaviour
     class Action
     {
         public int StartLocation { get; set; }
-        public Direction StartOrientation { get; set; }
+        public Direction3D StartOrientation { get; set; }
         public bool LocationIsIdentified { get; set; }
         public Button Button { get; set; }
         public int EndLocation { get; set; }
-        public Direction EndOrientation { get; set; }
+        public Direction3D EndOrientation { get; set; }
         public StrikeReason StrikeReason { get; set; }
     }
 }

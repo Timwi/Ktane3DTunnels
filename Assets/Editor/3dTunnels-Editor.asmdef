@@ -1,0 +1,10 @@
+{
+  "name": "3dTunnels-Editor",
+  "references": [
+    "3dTunnels"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": []
+}
