@@ -33,11 +33,11 @@ public class ThreeDTunnels : MonoBehaviour
     private Direction _direction;
     private HashSet<int> _identifiedNodes;
     private List<int> _targetNodes;
-    private int _numIdentifiedNotes = 6;
-    private int _numTargetNodes = 3;
+    private const int _numIdentifiedNotes = 6;
+    private const int _numTargetNodes = 3;
     private int _currentTarget = 0;
     private bool _solved = false;
-    private List<Action> _actionLog = new List<Action>();
+    private readonly List<Action> _actionLog = new List<Action>();
     private enum Button { Up, Right, Down, Left, Target };
     private enum StrikeReason { None, FlyIntoWall, NotOnTarget };
 
@@ -80,7 +80,7 @@ public class ThreeDTunnels : MonoBehaviour
                 if (found) break;
             }
         }
-        Debug.LogFormat("[3d Tunnels #{0}] Identified nodes: {1}", _moduleId, String.Join(", ", _identifiedNodes.Select(x => _symbolNames[x]).ToArray()));
+        Debug.LogFormat("[3D Tunnels #{0}] Identified nodes: {1}", _moduleId, String.Join(", ", _identifiedNodes.Select(x => _symbolNames[x]).ToArray()));
 
         // Random target nodes, except for center node
         // Initialize with identified nodes so we can exclude them later
@@ -91,7 +91,7 @@ public class ThreeDTunnels : MonoBehaviour
             if (rnd != 13) targetNodes.Add(rnd);
         }
         _targetNodes = targetNodes.Except(_identifiedNodes).ToList();
-        Debug.LogFormat("[3d Tunnels #{0}] Target nodes: {1}", _moduleId, String.Join(", ", _targetNodes.Select(x => _symbolNames[x]).ToArray()));
+        Debug.LogFormat("[3D Tunnels #{0}] Target nodes: {1}", _moduleId, String.Join(", ", _targetNodes.Select(x => _symbolNames[x]).ToArray()));
 
         // Random starting location
         do _location = Rnd.Range(0, 27);
@@ -99,9 +99,9 @@ public class ThreeDTunnels : MonoBehaviour
 
         // Random starting direction
         var directions = Enum.GetValues(typeof(Direction));
-        _direction = (Direction)directions.GetValue(Rnd.Range(0, directions.Length));
+        _direction = (Direction) directions.GetValue(Rnd.Range(0, directions.Length));
 
-        Debug.LogFormat("[3d Tunnels #{0}] Starting at {1}. {2}", _moduleId, _symbolNames[_location], GetOrientationDescription(_location, _direction));
+        Debug.LogFormat("[3D Tunnels #{0}] Starting at {1}. {2}", _moduleId, _symbolNames[_location], GetOrientationDescription(_location, _direction));
 
         UpdateDisplay();
         StartCoroutine(RotateSymbol());
@@ -177,10 +177,10 @@ public class ThreeDTunnels : MonoBehaviour
         if (_location == _targetNodes[_currentTarget])
         {
             // If so, go to next stage, or module solved if this was the last stage
-            Debug.LogFormat("[3d Tunnels #{0}] {1} identified correctly.", _moduleId, _symbolNames[_location]);
+            Debug.LogFormat("[3D Tunnels #{0}] {1} identified correctly.", _moduleId, _symbolNames[_location]);
             if (_currentTarget == _numTargetNodes - 1)
             {
-                Debug.LogFormat("[3d Tunnels #{0}] Module solved!", _moduleId);
+                Debug.LogFormat("[3D Tunnels #{0}] Module solved!", _moduleId);
                 _solved = true;
                 TargetSymbol.gameObject.SetActive(false);
                 Module.HandlePass();
@@ -205,14 +205,15 @@ public class ThreeDTunnels : MonoBehaviour
 
     private void LogActions()
     {
-        Debug.LogFormat("[3d Tunnels #{0}] You got a strike. Action log:", _moduleId);
+        Debug.LogFormat("[3D Tunnels #{0}] You got a strike. Action log:", _moduleId);
 
         for (var i = 0; i < _actionLog.Count; i++)
         {
             var action = _actionLog[i];
             var msg = "";
 
-            if (i == 0) {
+            if (i == 0)
+            {
                 msg += "Starting at " + _symbolNames[action.StartLocation] + ". ";
                 msg += GetOrientationDescription(action.StartLocation, action.StartOrientation);
                 if (action.LocationIsIdentified)
@@ -230,7 +231,7 @@ public class ThreeDTunnels : MonoBehaviour
                 else
                     msg += "Moving forward to " + _symbolNames[action.EndLocation] + ". ";
             }
-            Debug.LogFormat("[3d Tunnels #{0}] {1}", _moduleId, msg);
+            Debug.LogFormat("[3D Tunnels #{0}] {1}", _moduleId, msg);
         }
         _actionLog.Clear();
     }
@@ -325,6 +326,71 @@ public class ThreeDTunnels : MonoBehaviour
             yield return null;
             PressTargetButton();
         }
+    }
+
+    IEnumerator TwitchHandleForcedSolve()
+    {
+        while (!_solved)
+        {
+            var cur = ((int) _direction << 5) | _location;
+            var queue = new Queue<int>();
+            var parent = new Dictionary<int, int>();
+            queue.Enqueue(cur);
+
+            int last;
+            while (queue.Count > 0)
+            {
+                var data = queue.Dequeue();
+                if ((data & 0x1f) == _currentTarget)
+                {
+                    last = data;
+                    goto found;
+                }
+
+                int newData, newParent;
+                for (var btn = 0; btn < 4; btn++)
+                    if (TryTpMove(data, btn, out newData, out newParent) && !parent.ContainsKey(newData))
+                    {
+                        queue.Enqueue(newData);
+                        parent[newData] = newParent;
+                    }
+            }
+            throw new InvalidOperationException("No solution found");
+
+            found:
+            var buttons = new List<KMSelectable>();
+            var btns = new[] { ButtonUp, ButtonRight, ButtonDown, ButtonLeft };
+            while (last != cur)
+            {
+                var p = parent[last];
+                buttons.Add(btns[p & 3]);
+                last = p >> 2;
+            }
+            for (int i = buttons.Count - 1; i >= 0; i--)
+            {
+                buttons[i].OnInteract();
+                yield return new WaitForSeconds(.1f);
+            }
+            yield return new WaitForSeconds(.5f);
+            ButtonTarget.OnInteract();
+            yield return new WaitForSeconds(.5f);
+        }
+    }
+
+    bool TryTpMove(int data, int btn, out int newData, out int newParent)
+    {
+        var pos = data & 0x1f;
+        var dir = (Direction) (data >> 5);
+        var newDir =
+            btn == 0 ? dir.TurnUpDown(up: true) :
+            btn == 1 ? dir.TurnLeftRight(right: true) :
+            btn == 2 ? dir.TurnUpDown(up: false) :
+            dir.TurnLeftRight(right: false);
+        var valid = !newDir.IsWallForward(pos);
+        var newPos = valid ? newDir.MoveForward(pos) : 0;
+        newData = valid ? ((int) newDir << 5) | newPos : 0;
+        newParent = valid ? (data << 2) | btn : 0;
+        return valid;
     }
 
     class Action
