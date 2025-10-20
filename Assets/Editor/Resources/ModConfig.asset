@@ -13,8 +13,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: 3dTunnels
   title: 3D Tunnels
-  description: "Created by Groover and Timwi\n\nManual: https://ktane.timwi.de/HTML/3D%20Tunnels.html\n\r\nModule
+  author: Groover, Timwi
+  description: "This is a [b]re-upload[/b] of Groover\u2019s module. Please [url=https://steamcommunity.com/sharedfiles/filedetails/?id=1477710482]unsubscribe
+    from the old version[/url].\r\n\nCreated by Groover and Timwi. Supports Twitch
+    Plays and rule seed.\n\nManual: https://ktane.timwi.de/HTML/3D%20Tunnels.html\n\nInteractive
+    manual: https://ktane.timwi.de/HTML/3D%20Tunnels%20interactive%20(Timwi).html\n\r\nModule
     ID: 3dTunnels"
-  version: 1.0
+  version: 2.0
   outputFolder: build
   previewImage: {fileID: 2800000, guid: c3a953f7e206ae041ac23b394e34332c, type: 3}

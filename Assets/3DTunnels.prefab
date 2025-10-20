@@ -200,6 +200,7 @@ GameObject:
   - component: {fileID: 114419563805137044}
   - component: {fileID: 114125529641827650}
   - component: {fileID: 114903781449628448}
+  - component: {fileID: 114664517254522766}
   m_Layer: 0
   m_Name: 3DTunnels
   m_TagString: Untagged
@@ -2355,6 +2356,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   HighlightScale: {x: 1, y: 1, z: 1}
   OutlineAmount: 0
+--- !u!114 &114664517254522766
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1269871845856396}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adf69c2de51bd3c43bbd9bc22578ee08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _seed: 1
 --- !u!114 &114720219003727926
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -2478,6 +2491,7 @@ MonoBehaviour:
   Display: {fileID: 1968633546409752}
   Symbol: {fileID: 102257838587255412}
   TargetSymbol: {fileID: 102470858771989638}
+  RuleSeedable: {fileID: 114664517254522766}
 --- !u!114 &114917217880292910
 MonoBehaviour:
   m_ObjectHideFlags: 1
